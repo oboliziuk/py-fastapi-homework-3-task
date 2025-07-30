@@ -19,7 +19,7 @@ from security.passwords import hash_password
 
 async def create_user(db: AsyncSession, user: UserRegistrationRequestSchema):
     hashed = hash_password(user.password)
-    db_user = UserModel(email=user.email, hashed_password=hashed, role=user.role)
+    db_user = UserModel(email=user.email, _hashed_password=hashed, role=user.role)
     db.add(db_user)
     try:
         await db.commit()

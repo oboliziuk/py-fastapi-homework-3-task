@@ -142,7 +142,7 @@ async def login(
     if not db_user or not verify_password(data.password, db_user._hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     if not db_user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive account")
+        raise HTTPException(status_code=403, detail="User account...ot activated.")
 
     # Create tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
