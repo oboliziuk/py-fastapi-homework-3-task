@@ -119,7 +119,7 @@ async def delete_password_reset_token(db: AsyncSession, token_obj: PasswordReset
 
 async def update_user_password(db: AsyncSession, user: UserModel, new_password: str):
     hashed = hash_password(new_password)
-    user.hashed_password = hashed
+    user._hashed_password = hashed
     try:
         await db.commit()
         await db.refresh(user)
