@@ -169,7 +169,7 @@ async def refresh_access_token(
 ):
     try:
         payload = jwt_manager.decode_refresh_token(data.refresh_token)
-        user_id = payload.get("user_id")  # ← як у тесті
+        user_id = payload.get("user_id")
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
