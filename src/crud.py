@@ -72,7 +72,7 @@ async def get_activation_token_by_email_and_token(db: AsyncSession, email: str, 
     result = await db.execute(
         select(UserModel).where(
             UserModel.email == email,
-            UserModel.is_active == True
+            UserModel.is_active
         )
     )
     return result.scalar_one_or_none()

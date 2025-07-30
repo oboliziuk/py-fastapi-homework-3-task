@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import secrets
 from typing import cast
 
 from fastapi import APIRouter, Depends, status, HTTPException
@@ -74,7 +75,7 @@ async def register(
 
 
 @router.post("/activate/", response_model=MessageResponseSchema)
-async def activate_user_account(
+async def activate_account(
         date: UserActivationRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
@@ -128,7 +129,6 @@ async def reset_password_complete(
     await update_user_password(db, db_user, data.new_password)
     await delete_password_reset_token(db, db_user)
     return {"message": "Password reset successfully."}
-
 
 
 @router.post("/login/", response_model=UserLoginResponseSchema)
