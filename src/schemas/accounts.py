@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator, Field, validator
 
 from database.validators.accounts import validate_password_strength
-from database.models.accounts import UserGroupEnum
 
 
 class UserBase(BaseModel):
@@ -10,7 +9,6 @@ class UserBase(BaseModel):
 
 class UserRegistrationRequestSchema(UserBase):
     password: str
-    groups: UserGroupEnum = Field(default=UserGroupEnum.USER)
 
     @validator("password")
     def validate_password(cls, v):
