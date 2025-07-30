@@ -1,13 +1,16 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import cast
 
 from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, joinedload
 
 from config import get_jwt_auth_manager, get_settings, BaseAppSettings
+from security.passwords import hash_password, verify_password
+from security.token_manager import JWTAuthManager
+from security.interfaces import JWTAuthManagerInterface
 from database import (
     get_db,
     UserModel,
@@ -15,16 +18,9 @@ from database import (
     UserGroupEnum,
     ActivationTokenModel,
     PasswordResetTokenModel,
-    RefreshTokenModel
+    RefreshTokenModel,
 )
 from exceptions import BaseSecurityError
-from security.interfaces import JWTAuthManagerInterface
-
-router = APIRouter()
-
-
-
-from fastapi.security import OAuth2PasswordBearer
 from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
@@ -35,7 +31,7 @@ from schemas.accounts import (
     UserLoginResponseSchema,
     UserLoginRequestSchema,
     TokenRefreshRequestSchema,
-    TokenRefreshResponseSchema
+    TokenRefreshResponseSchema,
 )
 from crud import (
     create_user,
@@ -51,11 +47,12 @@ from crud import (
     delete_password_reset_token,
     update_user_password,
     get_refresh_token_by_token,
-    get_user_by_id
+    get_user_by_id,
 )
 
-
+router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 @router.post(
     "/register/",
@@ -67,11 +64,14 @@ async def register(
 ):
     db_user = await get_user_by_email(db, user.email)
     if db_user:
-        raise HTTPException(status_code=409,
-            detail=f"A user with this email {user.email} already exists.")
+        raise HTTPException(
+            status_code=409,
+            detail=f"A user with this email {user.email} already exists."
+        )
     db_user = await create_user(db, user)
     await create_activation_token(db, db_user)
     return db_user
+
 
 @router.post("/activate/", response_model=MessageResponseSchema)
 async def activate_user_account(
@@ -99,7 +99,6 @@ async def activate_user_account(
     return {"message": "User account activated successfully."}
 
 
-
 @router.post("/password-reset/request/", response_model=MessageResponseSchema)
 async def reset_password_user_account(
         date: PasswordResetRequestSchema,
@@ -109,24 +108,27 @@ async def reset_password_user_account(
 
     if user:
         await delete_existing_password_reset_tokens(db, user)
+        token = secrets.token_urlsafe(32)
         await create_password_reset_token(db, user, token)
 
     return {
         "message": "If you are registered, you will receive an email with instructions."
     }
 
+
 @router.post("/reset-password/complete/", response_model=MessageResponseSchema)
 async def reset_password_complete(
-        date:PasswordResetCompleteRequestSchema,
+        data: PasswordResetCompleteRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
-    db_user = await get_password_reset_token(db, data.email, date.token)
+    db_user = await get_password_reset_token(db, data.email, data.token)
     if not db_user:
         raise HTTPException(status_code=400, detail="Invalid email or token.")
 
-    await update_user_password(db, db_user, new_password)
+    await update_user_password(db, db_user, data.new_password)
     await delete_password_reset_token(db, db_user)
     return {"message": "Password reset successfully."}
+
 
 
 @router.post("/login/", response_model=UserLoginResponseSchema)
@@ -162,10 +164,12 @@ async def login(
         "token_type": "bearer"
     }
 
+
 @router.post("/refresh/", response_model=TokenRefreshResponseSchema)
 async def refresh_access_token(
     data: TokenRefreshRequestSchema,
     db: AsyncSession = Depends(get_db),
+    jwt_manager: JWTAuthManager = Depends(get_jwt_auth_manager),
 ):
     try:
         payload = jwt_manager.decode_refresh_token(data.refresh_token)

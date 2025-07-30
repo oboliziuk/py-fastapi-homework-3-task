@@ -1,20 +1,18 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from schemas.accounts import UserRegistrationRequestSchema
-from database.models.accounts import UserModel
-
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
-from sqlalchemy.exc import SQLAlchemyError
-
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import (
     ActivationTokenModel,
     PasswordResetTokenModel,
-    RefreshTokenModel
+    RefreshTokenModel,
 )
+from database.models.accounts import UserModel
+from schemas.accounts import UserRegistrationRequestSchema
 
 from security.passwords import hash_password
 
@@ -71,15 +69,12 @@ async def create_activation_token(db: AsyncSession, user: UserModel):
 
 
 async def get_activation_token_by_email_and_token(db: AsyncSession, email: str, token: str):
-    stmt = (
-        select(ActivationTokenModel)
-        .join(UserModel)
-        .where(
+    result = await db.execute(
+        select(UserModel).where(
             UserModel.email == email,
-            ActivationTokenModel.token == token
+            UserModel.is_active == True
         )
     )
-    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
