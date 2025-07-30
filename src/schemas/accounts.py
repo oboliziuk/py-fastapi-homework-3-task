@@ -10,7 +10,7 @@ class UserBase(BaseModel):
 
 class UserRegistrationRequestSchema(UserBase):
     password: str
-    role: UserGroupEnum = Field(default=UserGroupEnum.USER)
+    groups: UserGroupEnum = Field(default=UserGroupEnum.USER)
 
     @validator("password")
     def validate_password(cls, v):
