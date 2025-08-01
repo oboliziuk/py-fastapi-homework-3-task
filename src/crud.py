@@ -16,6 +16,7 @@ from schemas.accounts import UserRegistrationRequestSchema
 
 from security.passwords import hash_password
 
+
 async def get_user_group_by_name(db: AsyncSession, name: UserGroupEnum) -> UserGroupModel:
     result = await db.execute(
         select(UserGroupModel).where(UserGroupModel.name == name)
