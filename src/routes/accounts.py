@@ -135,10 +135,8 @@ async def reset_password_complete(
         await db.commit()
         raise HTTPException(status_code=400, detail="Invalid email or token.")
 
-    user = token_obj.user
-
-    await update_user_password(db, db_user, data.password)
-    await delete_password_reset_token(db, db_user)
+    await update_user_password(db, token_obj.user, data.password)
+    await delete_password_reset_token(db, token_obj.user)
     return {"message": "Password reset successfully."}
 
 
@@ -146,8 +144,7 @@ async def reset_password_complete(
 async def login(
     data: UserLoginRequestSchema,
     db: AsyncSession = Depends(get_db),
-    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
-    settings: BaseAppSettings = Depends(get_settings)
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager)
 ):
     db_user = await get_user_by_email(db, data.email)
     if not db_user or not verify_password(data.password, db_user._hashed_password):
