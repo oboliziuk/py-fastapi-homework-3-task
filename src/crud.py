@@ -11,15 +11,21 @@ from database import (
     PasswordResetTokenModel,
     RefreshTokenModel,
 )
-from database.models.accounts import UserModel
+from database.models.accounts import UserModel, UserGroupEnum, UserGroupModel
 from schemas.accounts import UserRegistrationRequestSchema
 
 from security.passwords import hash_password
 
+async def get_user_group_by_name(db: AsyncSession, name: UserGroupEnum) -> UserGroupModel:
+    result = await db.execute(
+        select(UserGroupModel).where(UserGroupModel.name == name)
+    )
+    group = result.scalar_one()
+    return group
+
 
 async def create_user(db: AsyncSession, user: UserRegistrationRequestSchema):
     hashed = hash_password(user.password)
-
     user_group = await get_user_group_by_name(db, UserGroupEnum.USER)
 
     db_user = UserModel(
