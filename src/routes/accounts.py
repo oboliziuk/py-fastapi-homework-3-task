@@ -83,7 +83,11 @@ async def activate_account(
         db, date.email, date.token
     )
 
-    if not token_obj or token_obj.expires_at < datetime.now(timezone.utc):
+    expires_at = token_obj.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if not token_obj or expires_at < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=400, detail="Invalid or expired activation token."
         )
@@ -122,11 +126,18 @@ async def reset_password_complete(
         data: PasswordResetCompleteRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
-    db_user = await get_password_reset_token(db, data.email, data.token)
-    if not db_user:
+    token_obj = await get_password_reset_token(db, data.email, data.token)
+    if not token_obj:
         raise HTTPException(status_code=400, detail="Invalid email or token.")
 
-    await update_user_password(db, db_user, data.new_password)
+    if token_obj.expires_at < datetime.now(timezone.utc):
+        await db.delete(token_obj)
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Invalid email or token.")
+
+    user = token_obj.user
+
+    await update_user_password(db, db_user, data.password)
     await delete_password_reset_token(db, db_user)
     return {"message": "Password reset successfully."}
 
@@ -142,9 +153,8 @@ async def login(
     if not db_user or not verify_password(data.password, db_user._hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     if not db_user.is_active:
-        raise HTTPException(status_code=403, detail="User account...ot activated.")
+        raise HTTPException(status_code=403, detail="User account is not activated.")
 
-    # Create tokens
     access_token_expires = timedelta(minutes=30)
     access_token = jwt_manager.create_access_token(
         data={"sub": db_user.email}, expires_delta=access_token_expires
