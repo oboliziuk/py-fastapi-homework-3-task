@@ -82,11 +82,17 @@ async def create_activation_token(db: AsyncSession, user: UserModel):
     await db.commit()
 
 
-async def get_activation_token_by_email_and_token(db: AsyncSession, email: str, token: str):
+async def get_activation_token_by_email_and_token(
+        db: AsyncSession,
+        email: str,
+        token: str
+):
     result = await db.execute(
-        select(UserModel).where(
+        select(ActivationTokenModel)
+        .join(UserModel)
+        .where(
             UserModel.email == email,
-            UserModel.is_active
+            ActivationTokenModel.token == token
         )
     )
     return result.scalar_one_or_none()
@@ -119,7 +125,8 @@ async def get_password_reset_token(db: AsyncSession, email: str, token: str):
         .join(UserModel)
         .where(
             UserModel.email == email,
-            PasswordResetTokenModel.token == token
+            PasswordResetTokenModel.token == token,
+            PasswordResetTokenModel.expires_at > datetime.now(timezone.utc)
         )
     )
     result = await db.execute(stmt)

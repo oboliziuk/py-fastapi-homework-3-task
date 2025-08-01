@@ -145,7 +145,7 @@ async def login(
         raise HTTPException(status_code=403, detail="User account...ot activated.")
 
     # Create tokens
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=30)
     access_token = jwt_manager.create_access_token(
         data={"sub": db_user.email}, expires_delta=access_token_expires
     )
