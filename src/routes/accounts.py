@@ -75,11 +75,11 @@ async def register(
 
 @router.post("/activate/", response_model=MessageResponseSchema)
 async def activate_account(
-        date: UserActivationRequestSchema,
+        data: UserActivationRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
     token_obj = await get_user_token_by_email_and_token(
-        db, ActivationTokenModel, email, token
+        db, ActivationTokenModel, data.email, data.token
     )
 
     if not token_obj:
@@ -133,8 +133,8 @@ async def reset_password_complete(
     token_obj = await get_user_token_by_email_and_token(
         db,
         PasswordResetTokenModel,
-        email,
-        token
+        data.email,
+        data.token
     )
 
     async def raise_invalid_token():
