@@ -38,13 +38,12 @@ from crud import (
     create_user,
     get_user_by_email,
     create_activation_token,
-    get_activation_token_by_email_and_token,
+    get_user_token_by_email_and_token,
     activate_user_account,
     delete_activation_token,
     get_active_user_by_email,
     delete_existing_password_reset_tokens,
     create_password_reset_token,
-    get_password_reset_token,
     delete_password_reset_token,
     update_user_password,
     get_refresh_token_by_token,
@@ -79,8 +78,8 @@ async def activate_account(
         date: UserActivationRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
-    token_obj = await get_activation_token_by_email_and_token(
-        db, date.email, date.token
+    token_obj = await get_user_token_by_email_and_token(
+        db, ActivationTokenModel, email, token
     )
 
     if not token_obj:
@@ -131,11 +130,19 @@ async def reset_password_complete(
         data: PasswordResetCompleteRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
-    token_obj = await get_password_reset_token(db, data.email, data.token)
+    token_obj = await get_user_token_by_email_and_token(
+        db,
+        PasswordResetTokenModel,
+        email,
+        token
+    )
 
-    if not token_obj:
+    async def raise_invalid_token():
         await delete_existing_password_reset_tokens(db, data.email)
         raise HTTPException(status_code=400, detail="Invalid email or token.")
+
+    if not token_obj:
+        await raise_invalid_token()
 
     expires_at = token_obj.expires_at
     if expires_at.tzinfo is None:
@@ -143,10 +150,10 @@ async def reset_password_complete(
 
     if expires_at < datetime.now(timezone.utc):
         await delete_password_reset_token(db, token_obj)
-        raise HTTPException(status_code=400, detail="Invalid email or token.")
+        await raise_invalid_token()
 
     await update_user_password(db, token_obj.user, data.password)
-    await delete_password_reset_token(db, token_obj.user)
+    await delete_password_reset_token(db, token_obj)
     return {"message": "Password reset successfully."}
 
 

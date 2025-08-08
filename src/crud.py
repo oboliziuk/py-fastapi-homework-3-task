@@ -83,18 +83,14 @@ async def create_activation_token(db: AsyncSession, user: UserModel):
     await db.commit()
 
 
-async def get_activation_token_by_email_and_token(
-        db: AsyncSession,
-        email: str,
-        token: str
-):
+async def get_user_token_by_email_and_token(db: AsyncSession, token_model, email: str, token: str):
     result = await db.execute(
-        select(ActivationTokenModel)
-        .options(selectinload(ActivationTokenModel.user))
+        select(token_model)
+        .options(selectinload(token_model.user))
         .join(UserModel)
         .where(
             UserModel.email == email,
-            ActivationTokenModel.token == token
+            token_model.token == token
         )
     )
     return result.scalar_one_or_none()
@@ -119,20 +115,6 @@ async def create_password_reset_token(db: AsyncSession, user: UserModel, token: 
     token_obj = PasswordResetTokenModel(user_id=user.id, token=token)
     db.add(token_obj)
     await db.commit()
-
-
-async def get_password_reset_token(db: AsyncSession, email: str, token: str):
-    result = await db.execute(
-        select(PasswordResetTokenModel)
-        .options(selectinload(PasswordResetTokenModel.user))
-        .join(UserModel)
-        .where(
-            UserModel.email == email,
-            PasswordResetTokenModel.token == token,
-            PasswordResetTokenModel.expires_at > datetime.now(timezone.utc)
-        )
-    )
-    return result.scalar_one_or_none()
 
 
 async def delete_password_reset_token(db: AsyncSession, token_obj: PasswordResetTokenModel):
