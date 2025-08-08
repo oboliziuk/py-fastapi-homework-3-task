@@ -157,7 +157,7 @@ async def reset_password_complete(
     return {"message": "Password reset successfully."}
 
 
-@router.post("/login/", response_model=UserLoginResponseSchema)
+@router.post("/login/", response_model=UserLoginResponseSchema, status_code=201)
 async def login(
     data: UserLoginRequestSchema,
     db: AsyncSession = Depends(get_db),
@@ -171,12 +171,10 @@ async def login(
 
     access_token_expires = timedelta(minutes=30)
     access_token = jwt_manager.create_access_token(
-        data={"user_id": db_user.id},
+        data={"sub": db_user.email},
         expires_delta=access_token_expires
     )
-    refresh_token = jwt_manager.create_refresh_token(
-        data={"user_id": db_user.id},
-    )
+    refresh_token = jwt_manager.create_refresh_token(data={"sub": db_user.email})
 
     db_refresh_token = RefreshTokenModel(
         token=refresh_token,
@@ -192,7 +190,7 @@ async def login(
     }
 
 
-@router.post("/refresh/", response_model=TokenRefreshResponseSchema)
+@router.post("/refresh/", response_model=TokenRefreshResponseSchema, status_code=201)
 async def refresh_access_token(
     data: TokenRefreshRequestSchema,
     db: AsyncSession = Depends(get_db),
