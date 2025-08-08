@@ -83,11 +83,16 @@ async def activate_account(
         db, date.email, date.token
     )
 
+    if not token_obj:
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired activation token."
+        )
+
     expires_at = token_obj.expires_at
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-    if not token_obj or expires_at < datetime.now(timezone.utc):
+    if expires_at < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=400, detail="Invalid or expired activation token."
         )
@@ -106,10 +111,10 @@ async def activate_account(
 
 @router.post("/password-reset/request/", response_model=MessageResponseSchema)
 async def reset_password_user_account(
-        date: PasswordResetRequestSchema,
+        data: PasswordResetRequestSchema,
         db: AsyncSession = Depends(get_db)
 ):
-    user = await get_active_user_by_email(db, date.email)
+    user = await get_active_user_by_email(db, data.email)
 
     if user:
         await delete_existing_password_reset_tokens(db, user)
@@ -127,12 +132,17 @@ async def reset_password_complete(
         db: AsyncSession = Depends(get_db)
 ):
     token_obj = await get_password_reset_token(db, data.email, data.token)
+
     if not token_obj:
+        await delete_existing_password_reset_tokens_by_email(db, data.email)
         raise HTTPException(status_code=400, detail="Invalid email or token.")
 
-    if token_obj.expires_at < datetime.now(timezone.utc):
-        await db.delete(token_obj)
-        await db.commit()
+    expires_at = token_obj.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
+        await delete_password_reset_token(db, token_obj)
         raise HTTPException(status_code=400, detail="Invalid email or token.")
 
     await update_user_password(db, token_obj.user, data.password)
@@ -154,9 +164,12 @@ async def login(
 
     access_token_expires = timedelta(minutes=30)
     access_token = jwt_manager.create_access_token(
-        data={"sub": db_user.email}, expires_delta=access_token_expires
+        data={"user_id": db_user.id},
+        expires_delta=access_token_expires
     )
-    refresh_token = jwt_manager.create_refresh_token()
+    refresh_token = jwt_manager.create_refresh_token(
+        data={"user_id": db_user.id},
+    )
 
     db_refresh_token = RefreshTokenModel(
         token=refresh_token,
