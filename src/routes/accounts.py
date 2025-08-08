@@ -134,7 +134,7 @@ async def reset_password_complete(
     token_obj = await get_password_reset_token(db, data.email, data.token)
 
     if not token_obj:
-        await delete_existing_password_reset_tokens_by_email(db, data.email)
+        await delete_existing_password_reset_tokens(db, data.email)
         raise HTTPException(status_code=400, detail="Invalid email or token.")
 
     expires_at = token_obj.expires_at
