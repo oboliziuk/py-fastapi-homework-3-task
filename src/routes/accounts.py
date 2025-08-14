@@ -133,7 +133,7 @@ async def reset_password_complete(
     token_obj = await get_user_token_by_email_and_token(
         db,
         PasswordResetTokenModel,
-        data.user,
+        data.email,
         data.token
     )
 
