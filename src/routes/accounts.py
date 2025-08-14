@@ -138,7 +138,7 @@ async def reset_password_complete(
     )
 
     async def raise_invalid_token():
-        user = await get_user_by_email(db, data.user)
+        user = await get_user_by_email(db, data.email)
         if user:
             await delete_existing_password_reset_tokens(db, user)
         raise HTTPException(status_code=400, detail="Invalid email or token.")
